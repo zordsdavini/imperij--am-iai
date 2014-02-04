@@ -882,47 +882,71 @@ def prepare_fight(screen, gs):
                     land['army']['ptr'] -= gs.game['fight_ptr']
                     for i in range(gs.game['fight_pst']):
                         gs.fight['units'].append({
+                            'id': len(gs.fight['units']),
                             'country': country.short_name,
                             'color': country.color,
-                            'type': 'pst',
-                            'health': 10
+                            'type': 'P',
+                            'health': 10,
+                            'pos': None,
+                            'field': None,
+                            'fortify': False
                             })
                     for i in range(gs.game['fight_ark']):
                         gs.fight['units'].append({
+                            'id': len(gs.fight['units']),
                             'country': country.short_name,
                             'color': country.color,
-                            'type': 'ark',
-                            'health': 50
+                            'type': 'A',
+                            'health': 50,
+                            'pos': None,
+                            'field': None,
+                            'fortify': False
                             })
                     for i in range(gs.game['fight_ptr']):
                         gs.fight['units'].append({
+                            'id': len(gs.fight['units']),
                             'country': country.short_name,
                             'color': country.color,
-                            'type': 'ptr',
-                            'health': 100
+                            'type': 'C',
+                            'health': 100,
+                            'pos': None,
+                            'field': None,
+                            'fortify': False
                             })
 
                     country_b, land_b = gs.get_country_land_from_capital(gs.game['fight_to'][0], gs.game['fight_to'][1])
                     for i in range(land_b['army']['pst']):
                         gs.fight['units'].append({
+                            'id': len(gs.fight['units']),
                             'country': country_b,
                             'color': land_b['color'],
-                            'type': 'pst',
-                            'health': 10
+                            'type': 'P',
+                            'health': 10,
+                            'pos': None,
+                            'field': None,
+                            'fortify': False
                             })
                     for i in range(land_b['army']['ark']):
                         gs.fight['units'].append({
+                            'id': len(gs.fight['units']),
                             'country': country_b,
                             'color': land_b['color'],
-                            'type': 'ark',
-                            'health': 50
+                            'type': 'A',
+                            'health': 50,
+                            'pos': None,
+                            'field': None,
+                            'fortify': False
                             })
                     for i in range(land_b['army']['ptr']):
                         gs.fight['units'].append({
+                            'id': len(gs.fight['units']),
                             'country': country_b,
                             'color': land_b['color'],
-                            'type': 'ptr',
-                            'health': 100
+                            'type': 'C',
+                            'health': 100,
+                            'pos': None,
+                            'field': None,
+                            'fortify': False
                             })
 
                     a = 0
@@ -1012,19 +1036,18 @@ def fight(screen, gs):
             index = gs.fight['fields'][i][j]
             if isinstance(index, int):
                 unit = gs.fight['units'][index]
-                symbol = 'P'
-                if unit['type'] == 'ark':
-                    symbol = 'A'
-                elif unit['type'] == 'ptr':
-                    symbol = 'C'
-
+                unit['pos'] = (52 + i * 20, 502 + j * 20)
+                unit['field'] = (i, j)
                 pygame.draw.rect(screen, unit['color'], (52 + i * 20, 502 + j * 20, 17, 17), 0)
-                a = fonts18.render(symbol, True, (0, 0, 0))
+                a = fonts18.render(unit['type'], True, (0, 0, 0))
                 screen.blit(a, (55 + i * 20, 505 + j * 20))
+                if unit['fortify']:
+                    pygame.draw.rect(screen, (255, 255, 255), (52 + i * 20, 502 + j * 20, 16, 16), 2)
+
 
     if gs.fight['action'] == 'selected':
         selected_unit = gs.fight['units'][gs.fight['selected_unit']]
-        if selected_unit['type'] in ['pst', 'ptr']:
+        if selected_unit['type'] in ['P', 'C']:
             actions = ['X', 'F', 'G', 'S']
             longness = 80
         else:
@@ -1042,15 +1065,57 @@ def fight(screen, gs):
 
     if gs.fight['action'] == 'selected_go':
         selected_unit = gs.fight['units'][gs.fight['selected_unit']]
-        if selected_unit['type'] in ['pst']:
+        if selected_unit['type'] in ['P']:
             longness = 100
-        elif selected_unit['type'] in ['ptr']:
+        elif selected_unit['type'] in ['C']:
             longness = 50
         else:
             longness = 200
 
         x, y = gs.fight['selected_pos']
         pygame.draw.circle(screen, (255, 0, 0), (x - 20, y + 20), longness, 5)
+
+    if gs.fight['action'] == 'moving':
+        if len(gs.fight['user_log']) == 0:
+            gs.fight['action'] = 'looking'
+        else:
+            action = gs.fight['user_log'][0]
+            unit = gs.fight['units'][action['unit']]
+
+            if action['action'] == 'F':
+                unit['fortify'] = True
+                del gs.fight['user_log'][0]
+            elif action['action'] == 'S':
+                del gs.fight['user_log'][0]
+            elif action['action'] == 'G':
+                if unit['pos'] == action['target']:
+                    i = (unit['pos'][0] - 52) / 20
+                    j = (unit['pos'][1] - 502) / 20
+                    unit['field'] = (i, j)
+                    gs.fight['fields'][i][j] = unit['id']
+
+                    del gs.fight['user_log'][0]
+
+                else:
+                    gs.fight['fields'][unit['field'][0]][unit['field'][1]] = None
+                    pygame.draw.rect(screen, (0, 0, 0), (unit['pos'][0] - 1, unit['pos'][1] - 1, 19, 19), 5)
+                    pygame.draw.rect(screen, unit['color'], (unit['pos'][0], unit['pos'][1], 17, 17), 0)
+                    a = fonts18.render(unit['type'], True, (0, 0, 0))
+                    screen.blit(a, (unit['pos'][0] + 3, unit['pos'][1] + 3))
+
+                    x = unit['pos'][0]
+                    y = unit['pos'][1]
+                    if x < action['target'][0]:
+                        x += 1
+                    elif x > action['target'][0]:
+                        x -= 1
+
+                    if y < action['target'][1]:
+                        y += 1
+                    elif y > action['target'][1]:
+                        y -= 1
+
+                    unit['pos'] = (x, y)
 
 
     # Inputs
@@ -1060,11 +1125,8 @@ def fight(screen, gs):
             x_m, y_m = event.pos
 
             if (x_m > 1140 and x_m < 1355):
-                if (y_m > 30 and y_m < 80): # and gs.game['stage'] == 0):
-                    gs.set_stage('fight')
-                    land['army']['pst'] -= gs.game['fight_pst']
-                    land['army']['ark'] -= gs.game['fight_ark']
-                    land['army']['ptr'] -= gs.game['fight_ptr']
+                if (y_m > 30 and y_m < 80):
+                    gs.fight['action'] = 'moving'
                     pygame.mouse.set_cursor(*pygame.cursors.arrow)
 
                 if (y_m > 90 and y_m < 130):
@@ -1097,9 +1159,9 @@ def fight(screen, gs):
 
                             if gs.fight['action'] == 'selected_go':
                                 selected_unit = gs.fight['units'][gs.fight['selected_unit']]
-                                if selected_unit['type'] in ['pst']:
+                                if selected_unit['type'] in ['P']:
                                     longness = 120
-                                elif selected_unit['type'] in ['ptr']:
+                                elif selected_unit['type'] in ['C']:
                                     longness = 40
                                 else:
                                     longness = 220
@@ -1127,7 +1189,7 @@ def fight(screen, gs):
 
             if gs.fight['action'] == 'selected':
                 selected_unit = gs.fight['units'][gs.fight['selected_unit']]
-                if selected_unit['type'] in ['pst', 'ptr']:
+                if selected_unit['type'] in ['P', 'C']:
                     actions = ['X', 'F', 'G', 'S']
                 else:
                     actions = ['X', 'F', 'G']
