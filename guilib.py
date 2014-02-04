@@ -56,23 +56,10 @@ class GameSettings:
     """Object to save all game parameters during game."""
     een = True          # Game loop
     stage = 'start'     # display stage of game (start, map, settings etc.)
-    turn = 0            # Player starts
-    fullscreen = False  # Fullscreen is off
 
     countries = {}      # Countries
     maps = {}           # Maps
     ages = ['XIII', 'XIX']
-    log = []            # Game log
-
-    GREEN = (0, 180, 0)
-    RED = (180, 0, 0)
-    BLUE = (0, 0, 255)
-    BLACK = (0, 0, 0)
-    COLORS = [GREEN, RED, BLUE, BLACK]
-
-    PRINT = 0
-    LAST_POINT = 0
-    POINT = 0
 
     HOME = os.path.expanduser("~")
     HOME = os.path.join(HOME, '.rc_maumataskis')
@@ -164,7 +151,8 @@ class GameSettings:
             'selected_unit': None,
             'selected_field': None,
             'selected_pos': None,
-            'action': 'looking'
+            'action': 'looking',
+            'user_log': []
             }
 
     def __init__(self):

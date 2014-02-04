@@ -3,6 +3,7 @@
 from guilib import *
 import pygame
 from pygame.locals import *
+import math
 
 
 def main():
@@ -1039,6 +1040,18 @@ def fight(screen, gs):
             start_x += 20
 
 
+    if gs.fight['action'] == 'selected_go':
+        selected_unit = gs.fight['units'][gs.fight['selected_unit']]
+        if selected_unit['type'] in ['pst']:
+            longness = 100
+        elif selected_unit['type'] in ['ptr']:
+            longness = 50
+        else:
+            longness = 200
+
+        x, y = gs.fight['selected_pos']
+        pygame.draw.circle(screen, (255, 0, 0), (x - 20, y + 20), longness, 5)
+
 
     # Inputs
     events = pygame.event.get()
@@ -1066,20 +1079,51 @@ def fight(screen, gs):
                     gs.game['fight_to'] = None
                     pygame.mouse.set_cursor(*pygame.cursors.arrow)
 
-            if gs.fight['action'] in ['looking']:
+            if gs.fight['action'] in ['looking', 'selected_go']:
                 for i in range(54):
                     for j in range(9):
+                        x = 52 + i * 20
+                        y = 502 + j * 20
                         index = gs.fight['fields'][i][j]
-                        if isinstance(index, int):
-                            x = 52 + i * 20
-                            y = 502 + j * 20
-                            if x < x_m < x + 17 and y < y_m < y + 17:
-                                pygame.draw.rect(screen, (0, 0, 255), (x, y, 17, 17), 0)
+                        if x < x_m < x + 17 and y < y_m < y + 17:
+                            pygame.draw.rect(screen, (0, 0, 255), (x, y, 17, 17), 0)
+
+                            if isinstance(index, int):
                                 if gs.fight['action'] == 'looking':
                                     gs.fight['selected_unit'] = index
                                     gs.fight['selected_field'] = i, j
                                     gs.fight['selected_pos'] = x + 30, y - 10
                                     gs.fight['action'] = 'selected'
+
+                            if gs.fight['action'] == 'selected_go':
+                                selected_unit = gs.fight['units'][gs.fight['selected_unit']]
+                                if selected_unit['type'] in ['pst']:
+                                    longness = 120
+                                elif selected_unit['type'] in ['ptr']:
+                                    longness = 40
+                                else:
+                                    longness = 220
+
+                                x_, y_ = gs.fight['selected_pos']
+                                distance = int(math.sqrt((x_ - 20 - x_m)**2 + (y_ + 20 - y_m)**2))
+
+                                if distance <= longness:
+                                    for i, log in enumerate(gs.fight['user_log']):
+                                        if log['unit'] == gs.fight['selected_unit']:
+                                            del gs.fight['user_log'][i]
+                                            break
+
+                                    gs.fight['user_log'].append({
+                                        'unit': gs.fight['selected_unit'],
+                                        'action': 'G',
+                                        'target': (x, y)
+                                        })
+
+                                    gs.fight['action'] = 'looking'
+                                    gs.fight['selected_unit'] = None
+                                    gs.fight['selected_field'] = None
+                                    gs.fight['selected_pos'] = None
+
 
             if gs.fight['action'] == 'selected':
                 selected_unit = gs.fight['units'][gs.fight['selected_unit']]
@@ -1099,7 +1143,20 @@ def fight(screen, gs):
                 x += 20
                 # F - fortify
                 if x < x_m < x + 20 and y < y_m < y + 20:
-                    pass
+                    for i, log in enumerate(gs.fight['user_log']):
+                        if log['unit'] == gs.fight['selected_unit']:
+                            del gs.fight['user_log'][i]
+                            break
+
+                    gs.fight['user_log'].append({
+                        'unit': gs.fight['selected_unit'],
+                        'action': 'F'
+                        })
+
+                    gs.fight['action'] = 'looking'
+                    gs.fight['selected_unit'] = None
+                    gs.fight['selected_field'] = None
+                    gs.fight['selected_pos'] = None
 
                 x += 20
                 # G - go
@@ -1109,6 +1166,17 @@ def fight(screen, gs):
                 x += 20
                 # S - shot
                 if x < x_m < x + 20 and y < y_m < y + 20:
-                    pass
+                    for i, log in enumerate(gs.fight['user_log']):
+                        if log['unit'] == gs.fight['selected_unit']:
+                            del gs.fight['user_log'][i]
+                            break
 
+                    gs.fight['user_log'].append({
+                        'unit': gs.fight['selected_unit'],
+                        'action': 'S'
+                        })
 
+                    gs.fight['action'] = 'looking'
+                    gs.fight['selected_unit'] = None
+                    gs.fight['selected_field'] = None
+                    gs.fight['selected_pos'] = None
