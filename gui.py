@@ -703,6 +703,10 @@ def new(screen, gs):
 
 
 def play(screen, gs):
+    fonts18 = pygame.font.Font(None, 18)
+    fonts24 = pygame.font.Font(None, 24)
+    fonts72 = pygame.font.Font(None, 72)
+
     if gs.game['stage'] == 'get':
         for country in gs.game['map']:
             for i, land in enumerate(gs.game['map'][country]):
@@ -719,10 +723,6 @@ def play(screen, gs):
 
         gs.game['stage'] = 0
 
-
-    fonts18 = pygame.font.Font(None, 18)
-    fonts24 = pygame.font.Font(None, 24)
-
     bgcolor = pygame.Surface(screen.get_size())
     bgcolor = bgcolor.convert()
     bgcolor.fill((235, 235, 155))
@@ -733,8 +733,10 @@ def play(screen, gs):
 
     pygame.draw.rect(screen, (63, 125, 143), (10, 10, 1120, 720), 0)
 
+    lefts = dict()
     for country in gs.game['map']:
         for land in gs.game['map'][country]:
+            lefts[country] = ''
             pygame.draw.polygon(screen, land['color'], land['border'])
 
             pos_old = None
@@ -750,6 +752,13 @@ def play(screen, gs):
             army_text = '%i | %i | %i' % (land['army']['pst'], land['army']['ark'], land['army']['ptr'])
             a = fonts18.render(army_text, True, (0, 0, 0))
             screen.blit(a, (land['capital'][0]+12, land['capital'][1]+12))
+
+    victory = False
+    if (len(lefts) == 1):
+        victory = True
+        victory_country = gs.get_country(lefts.keys()[0])
+        a = fonts72.render(u'%s laimėjo' % victory_country.name, True, (0, 0, 0))
+        screen.blit(a, (300, 300))
 
 
     a = fonts24.render(u'Ėjimas: %i' % gs.game['turn'], True, (0, 0, 0))
@@ -776,7 +785,7 @@ def play(screen, gs):
             x_m, y_m = event.pos
 
             if (x_m > 1140 and x_m < 1355):
-                if (y_m > 30 and y_m < 80): # and gs.game['stage'] == 0):
+                if not victory and (y_m > 30 and y_m < 80): # and gs.game['stage'] == 0):
                     if (len(gs.game['users']) == gs.game['stage'] + 1):
                         gs.game['stage'] = 'get'
                     else:
@@ -1230,9 +1239,9 @@ def fight(screen, gs):
 
                 #if aggressor wins - army should go to this land and land should got to him
                 if country.short_name == lefts.keys()[0]:
-                    land['army']['pst'] = gs.game['fight_pst']
-                    land['army']['ark'] = gs.game['fight_ark']
-                    land['army']['ptr'] = gs.game['fight_ptr']
+                    land_b['army']['pst'] = gs.game['fight_pst']
+                    land_b['army']['ark'] = gs.game['fight_ark']
+                    land_b['army']['ptr'] = gs.game['fight_ptr']
 
                     gs.transfare_land()
                     
