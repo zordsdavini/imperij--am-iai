@@ -152,7 +152,8 @@ class GameSettings:
             'selected_field': None,
             'selected_pos': None,
             'action': 'looking',
-            'user_log': []
+            'user_log': [],
+            'param_int': 0
             }
 
     def __init__(self):
@@ -227,6 +228,23 @@ class GameSettings:
 
         return None, None
         
+
+    def transfare_land(self):
+        """after fight transfare land to winer"""
+        vcountry, vland = self.get_country_land_from_capital(
+                self.game['fight_from'][0],
+                self.game['fight_from'][1])
+
+        x = self.game['fight_to'][0]
+        y = self.game['fight_to'][1]
+        
+        for country in self.game['map']:
+            for i, land in enumerate(self.game['map'][country]):
+                if x - 10 < land['capital'][0] < x + 10 and y - 10 < land['capital'][1] < y + 10:
+                    land['color'] = vland['color']
+                    self.game['map'][vcountry].append(land)
+                    del(self.game['map'][country][i])
+
 
     def save_new_map(self):
         # prepare content

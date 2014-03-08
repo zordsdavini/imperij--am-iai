@@ -869,6 +869,7 @@ def prepare_fight(screen, gs):
             if (x_m > 1140 and x_m < 1355):
                 if (y_m > 30 and y_m < 80): # and gs.game['stage'] == 0):
                     gs.set_stage('fight')
+                    gs.fight['action'] = 'moving'
                     gs.fight['fields'] = []
                     for i in range(54):
                         gs.fight['fields'].append([])
@@ -889,6 +890,7 @@ def prepare_fight(screen, gs):
                             'health': 10,
                             'pos': None,
                             'field': None,
+                            'in_action': False,
                             'fortify': False
                             })
                     for i in range(gs.game['fight_ark']):
@@ -900,6 +902,7 @@ def prepare_fight(screen, gs):
                             'health': 50,
                             'pos': None,
                             'field': None,
+                            'in_action': False,
                             'fortify': False
                             })
                     for i in range(gs.game['fight_ptr']):
@@ -911,6 +914,7 @@ def prepare_fight(screen, gs):
                             'health': 100,
                             'pos': None,
                             'field': None,
+                            'in_action': False,
                             'fortify': False
                             })
 
@@ -924,6 +928,7 @@ def prepare_fight(screen, gs):
                             'health': 10,
                             'pos': None,
                             'field': None,
+                            'in_action': False,
                             'fortify': False
                             })
                     for i in range(land_b['army']['ark']):
@@ -935,6 +940,7 @@ def prepare_fight(screen, gs):
                             'health': 50,
                             'pos': None,
                             'field': None,
+                            'in_action': False,
                             'fortify': False
                             })
                     for i in range(land_b['army']['ptr']):
@@ -946,6 +952,7 @@ def prepare_fight(screen, gs):
                             'health': 100,
                             'pos': None,
                             'field': None,
+                            'in_action': False,
                             'fortify': False
                             })
 
@@ -1003,8 +1010,9 @@ def fight(screen, gs):
     bgcolor.fill((235, 235, 155))
     screen.blit(bgcolor, (0, 0))
 
-    mygt(screen, 1140, 30, 215, 50, u'Ėjimo pabaiga', gs)
-    mygt(screen, 1140, 90, 215, 50, u'Pabėgti iš mūšio', gs)
+    if gs.fight['action'] != 'victory':
+        mygt(screen, 1140, 30, 215, 50, u'Ėjimo pabaiga', gs)
+        mygt(screen, 1140, 90, 215, 50, u'Pabėgti iš mūšio', gs)
 
     country, land = gs.get_country_land_from_capital(gs.game['fight_from'][0], gs.game['fight_from'][1])
     country = gs.get_country(country)
@@ -1031,6 +1039,44 @@ def fight(screen, gs):
         pygame.draw.line(screen, (0, 0, 0), (start_x, 500), (start_x, 680), 3)
         start_x += 20
  
+    #remove dead
+    for unit in gs.fight['units']:
+        if unit['health'] < 0 and unit['field'] != None:
+            gs.fight['fields'][unit['field'][0]][unit['field'][1]] = ''
+            unit['field'] = None
+            unit['pos'] = (1000, 1000)
+
+            if unit['country'] == country.short_name:
+                if unit['type'] == 'P':
+                    gs.game['fight_pst'] -= 1
+                elif unit['type'] == 'A':
+                    gs.game['fight_ark'] -= 1
+                elif unit['type'] == 'C':
+                    gs.game['fight_ptr'] -= 1
+            else:
+                if unit['type'] == 'P':
+                    land_b['army']['pst'] -= 1
+                elif unit['type'] == 'A':
+                    land_b['army']['ark'] -= 1
+                elif unit['type'] == 'C':
+                    land_b['army']['ptr'] -= 1
+
+    #may be victory?
+    lefts = dict()
+    for unit in gs.fight['units']:
+        if unit['health'] > 0:
+            lefts[unit['country']] = ''
+
+    if (len(lefts) == 1):
+        gs.fight['action'] = 'victory'
+
+        victory_country = gs.get_country(lefts.keys()[0])
+        a = fonts72.render(u'%s laimėjo' % victory_country.name, True, (0, 0, 0))
+        screen.blit(a, (300, 300))
+
+        mygt(screen, 500, 400, 215, 50, u'Grįžti į žemėlapį', gs)
+
+
     for i in range(54):
         for j in range(9):
             index = gs.fight['fields'][i][j]
@@ -1039,7 +1085,11 @@ def fight(screen, gs):
                 unit['pos'] = (52 + i * 20, 502 + j * 20)
                 unit['field'] = (i, j)
                 pygame.draw.rect(screen, unit['color'], (52 + i * 20, 502 + j * 20, 17, 17), 0)
-                a = fonts18.render(unit['type'], True, (0, 0, 0))
+                type_color = (0, 0, 0)
+                if unit['in_action']:
+                    type_color = (255, 255, 255)
+
+                a = fonts18.render(unit['type'], True, type_color)
                 screen.blit(a, (55 + i * 20, 505 + j * 20))
                 if unit['fortify']:
                     pygame.draw.rect(screen, (255, 255, 255), (52 + i * 20, 502 + j * 20, 16, 16), 2)
@@ -1075,7 +1125,8 @@ def fight(screen, gs):
         x, y = gs.fight['selected_pos']
         pygame.draw.circle(screen, (255, 0, 0), (x - 20, y + 20), longness, 5)
 
-    if gs.fight['action'] == 'moving':
+
+    if gs.fight['action'] in ['moving', 'shooting']:
         if len(gs.fight['user_log']) == 0:
             gs.fight['action'] = 'looking'
         else:
@@ -1084,23 +1135,27 @@ def fight(screen, gs):
 
             if action['action'] == 'F':
                 unit['fortify'] = True
+                unit['in_action'] = False
                 del gs.fight['user_log'][0]
             elif action['action'] == 'S':
-                del gs.fight['user_log'][0]
+                pygame.draw.circle(screen, (0, 0, 0), (unit['pos'][0]+10, 300), 10)
+                pygame.draw.line(screen, (0, 0, 0), (50, 300), (1130, 300), 3)
+                gs.fight['action'] = 'shooting'
             elif action['action'] == 'G':
                 if unit['pos'] == action['target']:
                     i = (unit['pos'][0] - 52) / 20
                     j = (unit['pos'][1] - 502) / 20
                     unit['field'] = (i, j)
+                    unit['in_action'] = False
                     gs.fight['fields'][i][j] = unit['id']
 
                     del gs.fight['user_log'][0]
 
                 else:
-                    gs.fight['fields'][unit['field'][0]][unit['field'][1]] = None
+                    gs.fight['fields'][unit['field'][0]][unit['field'][1]] = ''
                     pygame.draw.rect(screen, (0, 0, 0), (unit['pos'][0] - 1, unit['pos'][1] - 1, 19, 19), 5)
                     pygame.draw.rect(screen, unit['color'], (unit['pos'][0], unit['pos'][1], 17, 17), 0)
-                    a = fonts18.render(unit['type'], True, (0, 0, 0))
+                    a = fonts18.render(unit['type'], True, (255, 255, 255))
                     screen.blit(a, (unit['pos'][0] + 3, unit['pos'][1] + 3))
 
                     x = unit['pos'][0]
@@ -1118,13 +1173,42 @@ def fight(screen, gs):
                     unit['pos'] = (x, y)
 
 
+    if gs.fight['action'] == 'selected_shoot':
+        selected_unit = gs.fight['units'][gs.fight['selected_unit']]
+        if selected_unit['type'] in ['P']:
+            longness = 20
+        elif selected_unit['type'] in ['C']:
+            longness = 60
+        else:
+            longness = 0
+
+        x, y = gs.fight['selected_pos']
+        pygame.draw.circle(screen, (255, 0, 0), (x, y + 10), gs.fight['param_int'], 0)
+
+        gs.fight['param_int'] += 1
+        if (gs.fight['param_int'] > longness):
+            # calculating damage
+            for unit in gs.fight['units']:
+                distance = int(math.sqrt((unit['pos'][0] - x)**2 + (unit['pos'][1] - y - 10)**2))
+                if longness / distance:
+                    unit['health'] -= (longness - distance)
+
+            gs.fight['param_int'] = 0
+            gs.fight['selected_unit'] = None
+            gs.fight['selected_pos'] = None
+            selected_unit['in_action'] = False
+            del gs.fight['user_log'][0]
+            gs.fight['action'] = 'moving'
+
+
+
     # Inputs
     events = pygame.event.get()
     for event in events:
         if event.type == MOUSEBUTTONUP and event.button == 1:
             x_m, y_m = event.pos
 
-            if (x_m > 1140 and x_m < 1355):
+            if gs.fight['action'] != 'victory' and (x_m > 1140 and x_m < 1355):
                 if (y_m > 30 and y_m < 80):
                     gs.fight['action'] = 'moving'
                     pygame.mouse.set_cursor(*pygame.cursors.arrow)
@@ -1140,6 +1224,24 @@ def fight(screen, gs):
                     gs.game['fight_from'] = None
                     gs.game['fight_to'] = None
                     pygame.mouse.set_cursor(*pygame.cursors.arrow)
+
+            if gs.fight['action'] == 'victory' and (x_m > 500 and x_m < 715) and (400 < y_m < 450):
+                gs.set_stage('play')
+
+                #if aggressor wins - army should go to this land and land should got to him
+                if country.short_name == lefts.keys()[0]:
+                    land['army']['pst'] = gs.game['fight_pst']
+                    land['army']['ark'] = gs.game['fight_ark']
+                    land['army']['ptr'] = gs.game['fight_ptr']
+
+                    gs.transfare_land()
+                    
+
+                gs.game['fight_from'] = None
+                gs.game['fight_to'] = None
+                pygame.mouse.set_cursor(*pygame.cursors.arrow)
+
+
 
             if gs.fight['action'] in ['looking', 'selected_go']:
                 for i in range(54):
@@ -1181,6 +1283,8 @@ def fight(screen, gs):
                                         'target': (x, y)
                                         })
 
+                                    selected_unit['in_action'] = True
+
                                     gs.fight['action'] = 'looking'
                                     gs.fight['selected_unit'] = None
                                     gs.fight['selected_field'] = None
@@ -1215,6 +1319,8 @@ def fight(screen, gs):
                         'action': 'F'
                         })
 
+                    selected_unit['in_action'] = True
+
                     gs.fight['action'] = 'looking'
                     gs.fight['selected_unit'] = None
                     gs.fight['selected_field'] = None
@@ -1238,7 +1344,59 @@ def fight(screen, gs):
                         'action': 'S'
                         })
 
+                    selected_unit['in_action'] = True
+
                     gs.fight['action'] = 'looking'
                     gs.fight['selected_unit'] = None
                     gs.fight['selected_field'] = None
                     gs.fight['selected_pos'] = None
+
+            # locking shooting target
+            if (gs.fight['action'] == 'shooting' and 0 < x_m < 1180 and 300 < y_m < 500):
+                action = gs.fight['user_log'][0]
+                unit = gs.fight['units'][action['unit']]
+
+                if unit['type'] == 'C':
+                    potention = (y_m - 300) / 20.
+                else:
+                    potention = (y_m - 300) / 60.
+
+                if  x_m > unit['pos'][0] + 10:
+                    x_start = unit['pos'][0] + 10 - int((x_m - unit['pos'][0] - 10) * potention)
+                else:
+                    x_start = unit['pos'][0] + 10 + int((unit['pos'][0] + 10 - x_m) * potention)
+
+                gs.fight['action'] = 'selected_shoot'
+                gs.fight['selected_unit'] = unit['id']
+                gs.fight['selected_field'] = None
+                gs.fight['selected_pos'] = (x_start, unit['pos'][1])
+
+
+        if event.type == MOUSEMOTION:
+            x_m, y_m = event.pos
+
+            if (gs.fight['action'] == 'shooting' and 0 < x_m < 1180 and 300 < y_m < 500):
+                action = gs.fight['user_log'][0]
+                unit = gs.fight['units'][action['unit']]
+                pygame.draw.circle(screen, (0, 0, 0), (unit['pos'][0]+10, 300), 10)
+                pygame.draw.line(screen, (255, 0, 0), (x_m, y_m), (unit['pos'][0]+10, 300), 3)
+
+                if unit['type'] == 'C':
+                    potention = (y_m - 300) / 20.
+                else:
+                    potention = (y_m - 300) / 60.
+
+                y_diff = y_m - 300
+                y_start = 300 - y_diff / 2
+
+                if  x_m > unit['pos'][0] + 10:
+                    x_start = unit['pos'][0] + 10 - int((x_m - unit['pos'][0] - 10) * potention)
+                    x_diff = int((x_m - unit['pos'][0] - 10) * potention)
+                else:
+                    x_start = unit['pos'][0] + 10
+                    x_diff = int((unit['pos'][0] + 10 - x_m) * potention)
+
+                if x_diff > 5 and y_diff > 5:
+                    pygame.draw.arc(screen, (255, 0, 0), (x_start, y_start, x_diff, y_diff),
+                            0, 3.15, 3)
+
