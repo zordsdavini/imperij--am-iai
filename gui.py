@@ -1142,44 +1142,123 @@ def fight(screen, gs):
             action = gs.fight['user_log'][0]
             unit = gs.fight['units'][action['unit']]
 
-            if action['action'] == 'F':
-                unit['fortify'] = True
-                unit['in_action'] = False
+            if not unit['health'] > 0:
                 del gs.fight['user_log'][0]
-            elif action['action'] == 'S':
-                pygame.draw.circle(screen, (0, 0, 0), (unit['pos'][0]+10, 300), 10)
-                pygame.draw.line(screen, (0, 0, 0), (50, 300), (1130, 300), 3)
-                gs.fight['action'] = 'shooting'
-            elif action['action'] == 'G':
-                if unit['pos'] == action['target']:
-                    i = (unit['pos'][0] - 52) / 20
-                    j = (unit['pos'][1] - 502) / 20
-                    unit['field'] = (i, j)
+            else:
+                if action['action'] == 'F':
+                    unit['fortify'] = True
                     unit['in_action'] = False
-                    gs.fight['fields'][i][j] = unit['id']
-
                     del gs.fight['user_log'][0]
+                elif action['action'] == 'S':
+                    pygame.draw.circle(screen, (0, 0, 0), (unit['pos'][0]+10, 300), 10)
+                    pygame.draw.line(screen, (0, 0, 0), (50, 300), (1130, 300), 3)
+                    gs.fight['action'] = 'shooting'
+                elif action['action'] == 'G':
 
-                else:
-                    gs.fight['fields'][unit['field'][0]][unit['field'][1]] = ''
-                    pygame.draw.rect(screen, (0, 0, 0), (unit['pos'][0] - 1, unit['pos'][1] - 1, 19, 19), 5)
-                    pygame.draw.rect(screen, unit['color'], (unit['pos'][0], unit['pos'][1], 17, 17), 0)
-                    a = fonts18.render(unit['type'], True, (255, 255, 255))
-                    screen.blit(a, (unit['pos'][0] + 3, unit['pos'][1] + 3))
+                    if unit['pos'] == action['target']:
+                        i = (unit['pos'][0] - 52) / 20
+                        j = (unit['pos'][1] - 502) / 20
+                        unit['field'] = (i, j)
+                        unit['in_action'] = False
+                        gs.fight['fields'][i][j] = unit['id']
 
-                    x = unit['pos'][0]
-                    y = unit['pos'][1]
-                    if x < action['target'][0]:
-                        x += 1
-                    elif x > action['target'][0]:
-                        x -= 1
+                        del gs.fight['user_log'][0]
 
-                    if y < action['target'][1]:
-                        y += 1
-                    elif y > action['target'][1]:
-                        y -= 1
+                    else:
+                        #check is field empty or enemy and empty field is near
+                        moving_target = list(action['target'])
+                        calculating_road = True
+                        while calculating_road:
+                            target_unit = gs.get_fight_unit_from_pos(moving_target)
+                            if not target_unit:
+                                calculating_road = False
+                                break
 
-                    unit['pos'] = (x, y)
+                            if abs(moving_target[0] - unit['pos'][0]) > abs(moving_target[1] - unit['pos'][1]):
+                                if moving_target[0] > unit['pos'][0]:
+                                    moving_target[0] -= 20
+                                elif moving_target[0] < unit['pos'][0]:
+                                    moving_target[0] += 20
+                            else:
+                                if moving_target[1] > unit['pos'][1]:
+                                    moving_target[1] -= 20
+                                elif moving_target[1] < unit['pos'][1]:
+                                    moving_target[1] += 20
+
+                            recheck_unit = gs.get_fight_unit_from_pos(moving_target)
+                            if not recheck_unit:
+                                calculating_road = False
+
+                            if target_unit['country'] != unit['country']:
+                                #calculating damage
+                                if target_unit['fortify']:
+                                    fortify = 1
+                                else:
+                                    fortify = 2
+
+                                if unit['type'] == 'P':
+                                    if target_unit['type'] == 'P':
+                                        target_unit['health'] -= unit['health'] / 4 * fortify
+                                        unit['health'] -= target_unit['health'] / 4
+                                    elif target_unit['type'] == 'A':
+                                        target_unit['health'] -= unit['health'] / 8 * fortify
+                                        unit['health'] -= target_unit['health'] / 4
+                                    else:
+                                        target_unit['health'] -= unit['health'] / 2 * fortify
+                                        unit['health'] -= target_unit['health'] / 12
+                                elif unit['type'] == 'A':
+                                    if target_unit['type'] == 'P':
+                                        target_unit['health'] -= unit['health'] / 4 * fortify
+                                        unit['health'] -= target_unit['health'] / 8
+                                    elif target_unit['type'] == 'A':
+                                        target_unit['health'] -= unit['health'] / 4 * fortify
+                                        unit['health'] -= target_unit['health'] / 4
+                                    else:
+                                        target_unit['health'] -= unit['health'] / 2 * fortify
+                                        unit['health'] -= target_unit['health'] / 12
+                                else:
+                                    if target_unit['type'] == 'P':
+                                        target_unit['health'] -= unit['health'] / 12 * fortify
+                                        unit['health'] -= target_unit['health'] / 2
+                                    elif target_unit['type'] == 'A':
+                                        target_unit['health'] -= unit['health'] / 12 * fortify
+                                        unit['health'] -= target_unit['health'] / 2
+                                    else:
+                                        target_unit['health'] -= unit['health'] / 4 * fortify
+                                        unit['health'] -= target_unit['health'] / 4
+
+                            if unit['pos'] == tuple(moving_target):
+                                calculating_road = False
+
+                            
+                        if unit['pos'] == tuple(moving_target):
+                            i = (unit['pos'][0] - 52) / 20
+                            j = (unit['pos'][1] - 502) / 20
+                            unit['field'] = (i, j)
+                            unit['in_action'] = False
+                            gs.fight['fields'][i][j] = unit['id']
+
+                            del gs.fight['user_log'][0]
+                        else:
+                            gs.fight['fields'][unit['field'][0]][unit['field'][1]] = ''
+                            pygame.draw.rect(screen, (0, 0, 0), (unit['pos'][0] - 1, unit['pos'][1] - 1, 19, 19), 5)
+                            pygame.draw.rect(screen, unit['color'], (unit['pos'][0], unit['pos'][1], 17, 17), 0)
+                            a = fonts18.render(unit['type'], True, (255, 255, 255))
+                            screen.blit(a, (unit['pos'][0] + 3, unit['pos'][1] + 3))
+
+                            x = unit['pos'][0]
+                            y = unit['pos'][1]
+                            if x < moving_target[0]:
+                                x += 1
+                            elif x > moving_target[0]:
+                                x -= 1
+
+                            if y < moving_target[1]:
+                                y += 1
+                            elif y > moving_target[1]:
+                                y -= 1
+
+                            unit['pos'] = (x, y)
 
 
     if gs.fight['action'] == 'selected_shoot':
@@ -1200,7 +1279,11 @@ def fight(screen, gs):
             for unit in gs.fight['units']:
                 distance = int(math.sqrt((unit['pos'][0] - x)**2 + (unit['pos'][1] - y - 10)**2))
                 if longness / distance:
-                    unit['health'] -= (longness - distance)
+                    fortify = 1
+                    if unit['fortify']:
+                        fortify = 2
+
+                    unit['health'] -= (longness - distance) / fortify
 
             gs.fight['param_int'] = 0
             gs.fight['selected_unit'] = None

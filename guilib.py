@@ -388,10 +388,33 @@ class GameSettings:
                     for p in border_extended:
                         if p[0] == capital[0] and p[1] == y:
                             count += 1
-                            print(count)
 
                 if count > 0 and count % 2 == 1:
                     return border
+
+    def get_fight_unit_from_pos(self, pos):
+        """Get unit from position in fight mode"""
+        field_pos = self.get_field_from_pos(pos)
+        for unit in self.fight['units']:
+            if unit['health'] > 0 and field_pos == unit['field']:
+                return unit
+
+        return None
+
+    def get_field_from_pos(self, pos):
+        """Get field from position in fight mode"""
+        start_x = 50
+        start_y = 500
+        for i in range(54):
+            for j in range(9):
+                if start_x < pos[0] < start_x + 20 and start_y < pos[1] < start_y + 20:
+                    return (i, j)
+
+                start_y += 20
+
+            start_x += 20
+            start_y = 500
+        
 
 
 class Country:
